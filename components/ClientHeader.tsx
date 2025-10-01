@@ -2,23 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function ClientHeader() {
   const router = useRouter();
-  const params = useSearchParams();
-
   const [user, setUser] = useState<null | { uid: string; displayName?: string }>(null);
-  const [query, setQuery] = useState<string>("");
+  const [query, setQuery] = useState("");
 
-  // Sync input with ?q= when it changes
-  useEffect(() => {
-    setQuery(params.get("q") ?? "");
-  }, [params]);
-
-  // Watch auth state
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u ? { uid: u.uid, displayName: u.displayName ?? undefined } : null);
@@ -26,32 +18,24 @@ export default function ClientHeader() {
     return () => unsub();
   }, []);
 
-  // Submit search to home with ?q=
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const q = query.trim();
-    const url = q ? `/?q=${encodeURIComponent(q)}` : "/";
-    router.push(url);
+    router.push(q ? `/?q=${encodeURIComponent(q)}` : "/");
   };
 
   const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      router.refresh();
-    } catch (e) {
-      console.error(e);
-    }
+    await signOut(auth);
+    router.refresh();
   };
 
   return (
     <header className="sticky top-0 z-40 border-b bg-white/85 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 h-28 flex items-center gap-3">
-        {/* Brand */}
         <Link href="/" className="text-3xl font-bold tracking-tight leading-none">
           MotorAdverts
         </Link>
 
-        {/* Search */}
         <form onSubmit={onSubmit} className="flex-1 flex items-center">
           <input
             type="search"
@@ -64,7 +48,6 @@ export default function ClientHeader() {
           />
         </form>
 
-        {/* Actions */}
         <nav className="flex items-center gap-3 text-sm">
           <Link
             href="/create-listing"
