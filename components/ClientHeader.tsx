@@ -4,13 +4,19 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // make sure lib/firebase exports `auth`
+import { auth } from "@/lib/firebase";
 
 export default function ClientHeader() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useSearchParams();
+
   const [user, setUser] = useState<null | { uid: string; displayName?: string }>(null);
-  const [query, setQuery] = useState<string>(searchParams.get("q") ?? "");
+  const [query, setQuery] = useState<string>("");
+
+  // Sync input with ?q= when it changes
+  useEffect(() => {
+    setQuery(params.get("q") ?? "");
+  }, [params]);
 
   // Watch auth state
   useEffect(() => {
@@ -29,8 +35,12 @@ export default function ClientHeader() {
   };
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    router.refresh();
+    try {
+      await signOut(auth);
+      router.refresh();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -41,21 +51,15 @@ export default function ClientHeader() {
           MotorAdverts
         </Link>
 
-        {/* Search (grows to fill the middle) */}
+        {/* Search */}
         <form onSubmit={onSubmit} className="flex-1 flex items-center">
           <input
             type="search"
             name="q"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search cars, vans, bikes..."
-            className="
-              w-full px-4 py-3
-              bg-white border border-neutral-300
-              rounded-none
-              outline-none focus:border-neutral-500
-              placeholder:text-neutral-400
-            "
+            placeholder="Search anything with AI search"
+            className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-none outline-none focus:border-neutral-500 placeholder:text-neutral-400"
             aria-label="Search listings"
           />
         </form>
