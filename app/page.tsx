@@ -1,103 +1,178 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, limit, getDocs, where } from "firebase/firestore";
+
+type Listing = {
+  id: string;
+  title: string;
+  price: number;
+  images?: string[];
+  category?: string;
+  location?: string;
+  postTown?: string;
+};
+
+// No "All"
+const CATEGORIES = ["Cars", "Vans", "Bikes", "Caravans", "Trucks", "Farm & Plant"] as const;
+
+const gbp = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+  maximumFractionDigits: 0,
+});
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [items, setItems] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCat, setActiveCat] = useState<(typeof CATEGORIES)[number] | null>(null);
+  const [scrolled, setScrolled] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const base = collection(db, "listings");
+      const q = activeCat
+        ? query(base, where("category", "==", activeCat), orderBy("createdAt", "desc"), limit(60))
+        : query(base, orderBy("createdAt", "desc"), limit(60));
+
+      const snap = await getDocs(q);
+      setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+      setLoading(false);
+    })();
+  }, [activeCat]);
+
+  const skeletons = useMemo(
+    () =>
+      Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="rounded-none bg-white shadow-sm animate-pulse">
+          <div className="aspect-square bg-neutral-100" />
+          <div className="p-2 space-y-2">
+            <div className="h-3.5 w-3/4 bg-neutral-100" />
+            <div className="h-3.5 w-1/3 bg-neutral-100" />
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      )),
+    []
+  );
+
+  return (
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      {/* FULL-BLEED, STICKY CATEGORY BAR */}
+      <div
+        className="
+          sticky z-20
+          top-[var(--header-height)]
+          -mt-[var(--header-height)]
+        "
+      >
+        <div
+          className={[
+            "relative left-1/2 w-screen -translate-x-1/2 transition-colors duration-300 backdrop-blur-sm",
+            scrolled ? "bg-black/70" : "bg-black",
+          ].join(" ")}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 py-2">
+            <div className="flex items-center justify-between gap-3">
+              {/* Category buttons (6 columns now) */}
+              <div className="grid grid-cols-6 gap-1 flex-1">
+                {CATEGORIES.map((c) => {
+                  const active = c === activeCat;
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setActiveCat(c === activeCat ? null : c)}
+                      className={[
+                        "w-full px-3 py-2 text-sm border rounded-none transition text-center",
+                        active
+                          ? "text-white bg-gradient-to-b from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 border-teal-700"
+                          : "bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-100",
+                      ].join(" ")}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-8 bg-neutral-400/50" />
+
+              {/* Filter + Sort buttons with vertical gradient */}
+              <div className="flex gap-2">
+                <button className="px-3 py-2 text-sm text-white bg-gradient-to-b from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 transition rounded-none">
+                  Filter
+                </button>
+                <button className="px-3 py-2 text-sm text-white bg-gradient-to-b from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 transition rounded-none">
+                  Sort
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FULL-BLEED very light grey background behind adverts */}
+      <div className="relative left-1/2 w-screen -translate-x-1/2 bg-neutral-50">
+        {/* adverts start just below header + categories */}
+        <main className="pt-[calc(var(--header-height)+0.5rem)] mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 py-4">
+          <section className="grid gap-1 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {loading && skeletons}
+
+            {!loading && items.length === 0 && (
+              <div className="col-span-full bg-white p-6 text-center text-sm text-neutral-600 rounded-none shadow-sm">
+                No listings found{activeCat ? ` in ${activeCat}` : ""}.
+              </div>
+            )}
+
+            {!loading &&
+              items.map((x) => (
+                <Link
+                  key={x.id}
+                  href={`/listing/${x.id}`}
+                  className="group relative rounded-none bg-white shadow-sm transition hover:shadow-md"
+                >
+                  {/* Category badge */}
+                  {x.category && (
+                    <span className="absolute left-1 top-1 z-10 rounded-none bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">
+                      {x.category}
+                    </span>
+                  )}
+
+                  <div
+                    className="aspect-square bg-neutral-100 bg-cover bg-center"
+                    style={{
+                      backgroundImage: x.images?.[0]
+                        ? `url(${x.images[0]})`
+                        : undefined,
+                    }}
+                  />
+                  <div className="p-2">
+                    <div className="truncate text-[15px] font-semibold">{x.title}</div>
+
+                    {/* Price + Post Town */}
+                    <div className="mt-1 flex items-center justify-between text-[13px] text-neutral-700">
+                      <span className="font-medium">
+                        {gbp.format(Number(x.price || 0))}
+                      </span>
+                      <span className="ml-2 truncate text-neutral-600 capitalize">
+                        {x.postTown ? x.postTown.toLowerCase() : ""}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+          </section>
+        </main>
+      </div>
     </div>
   );
 }
