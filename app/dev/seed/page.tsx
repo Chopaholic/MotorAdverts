@@ -73,12 +73,10 @@ const TOWNS = ["London", "Manchester", "Leeds", "Birmingham", "Glasgow", "Bristo
 const POSTCODES = ["SW1A1AA", "M11AE", "LS12AB", "B11AA", "G21AA", "BS11AA"] as const;
 
 /* ------------------------------ image helpers ----------------------------- */
-// Simple random picsum (not category-aware but always works in dev)
 function photoUrl(seed: string, w = 900, h = 900) {
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`;
 }
 
-/** Always 3 images per listing */
 function imagesForListing(
   category: string,
   make: string,
@@ -99,31 +97,44 @@ function imagesForListing(
 const pick = <T,>(arr: readonly T[], i: number) => arr[i % arr.length];
 const randInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
+const randBool = (truthyPct = 0.5) => Math.random() < truthyPct;
 
 /* -------------------------------- factories ------------------------------- */
+/** Cars: title excludes year; year stored separately; includes seats/fuelType/tow/warranty */
 function makeCar(i: number) {
   const [make, model, body] = pick(CARS, i);
   const year = randInt(2008, 2023);
   const mileage = randInt(20000, 120000);
   const price = randInt(1500, 18000);
-  const fuel = pick(FUELS, i);
-  const trans = pick(GEARS, i);
+
+  // fuelType aligned to UI filters (incl. some Electric for demo)
+  const baseFuel = pick(FUELS, i);
+  const fuelType = randBool(0.12) ? "Electric" : baseFuel;
+
+  const transmission = pick(GEARS, i);
   const colour = pick(COLOURS, i);
-  const title = `${year} ${make} ${model} ${body}`;
+  const seats = randInt(2, 7);
+  const hasTowBar = randBool(0.35);
+  const hasWarranty = randBool(0.4);
+
+  const title = `${make} ${model} ${body}`;
 
   return {
     category: "Cars" as const,
     make,
     model,
+    body,
+    title,             // NO YEAR IN TITLE
     year,
     mileage,
-    fuel,
-    transmission: trans,
-    body,
+    fuelType,          // <-- matches your UI filter
+    transmission,
     colour,
+    seats,
+    hasTowBar,
+    hasWarranty,
     price,
-    title,
-    description: `${title} in ${colour}. ${mileage.toLocaleString()} miles, ${fuel}, ${trans}.`,
+    description: `${year} ${make} ${model} ${body} in ${colour}. ${mileage.toLocaleString()} miles, ${fuelType}, ${transmission}.`,
     images: imagesForListing("Cars", make, model, year, i),
   };
 }
@@ -133,24 +144,31 @@ function makeVan(i: number) {
   const year = randInt(2010, 2023);
   const mileage = randInt(50000, 200000);
   const price = randInt(2500, 25000);
-  const fuel = "Diesel";
-  const trans = pick(GEARS, i);
+  const transmission = pick(GEARS, i);
   const colour = pick(COLOURS, i);
-  const title = `${year} ${make} ${model}`;
+  const seats = randInt(2, 9);
+  const fuelType = "Diesel";
+  const hasTowBar = randBool(0.45);
+  const hasWarranty = randBool(0.25);
+
+  const title = `${make} ${model}`;
 
   return {
     category: "Vans" as const,
     make,
     model,
+    body,
+    title,             // NO YEAR IN TITLE
     year,
     mileage,
-    fuel,
-    transmission: trans,
-    body,
+    fuelType,
+    transmission,
     colour,
+    seats,
+    hasTowBar,
+    hasWarranty,
     price,
-    title,
-    description: `${title} in ${colour}. ${mileage.toLocaleString()} miles, ready for work.`,
+    description: `${year} ${make} ${model} in ${colour}. ${mileage.toLocaleString()} miles — ready for work.`,
     images: imagesForListing("Vans", make, model, year, i),
   };
 }
@@ -161,21 +179,25 @@ function makeBike(i: number) {
   const mileage = randInt(1000, 30000);
   const price = randInt(1200, 9000);
   const colour = pick(COLOURS, i);
-  const title = `${year} ${make} ${model}`;
+
+  const title = `${make} ${model}`;
 
   return {
     category: "Bikes" as const,
     make,
     model,
+    body: "Bike",
+    title,             // NO YEAR IN TITLE
     year,
     mileage,
-    fuel: "Petrol",
+    fuelType: "Petrol",
     transmission: "Manual",
-    body: "Bike",
     colour,
+    seats: 2,
+    hasTowBar: false,
+    hasWarranty: randBool(0.2),
     price,
-    title,
-    description: `${title} in ${colour}. ${mileage.toLocaleString()} miles.`,
+    description: `${year} ${make} ${model} in ${colour}. ${mileage.toLocaleString()} miles.`,
     images: imagesForListing("Bikes", make, model, year, i),
   };
 }
@@ -185,21 +207,25 @@ function makeCaravan(i: number) {
   const year = randInt(2008, 2023);
   const price = randInt(2500, 20000);
   const colour = pick(COLOURS, i);
-  const title = `${year} ${make} ${model}`;
+
+  const title = `${make} ${model}`;
 
   return {
     category: "Caravans" as const,
     make,
     model,
+    body,
+    title,             // NO YEAR IN TITLE
     year,
     mileage: 0,
-    fuel: "N/A",
+    fuelType: "N/A",
     transmission: "N/A",
-    body,
     colour,
+    seats: randInt(2, 6),
+    hasTowBar: true,                 // caravans are towable kits; leave true
+    hasWarranty: randBool(0.25),
     price,
-    title,
-    description: `${title} ${colour} finish, spacious and well maintained.`,
+    description: `${year} ${make} ${model} ${colour} finish — spacious and well maintained.`,
     images: imagesForListing("Caravans", make, model, year, i),
   };
 }
@@ -210,21 +236,25 @@ function makeTruck(i: number) {
   const mileage = randInt(200000, 800000);
   const price = randInt(12000, 60000);
   const colour = pick(COLOURS, i);
-  const title = `${year} ${make} ${model}`;
+
+  const title = `${make} ${model}`;
 
   return {
     category: "Trucks" as const,
     make,
     model,
+    body: "Truck",
+    title,             // NO YEAR IN TITLE
     year,
     mileage,
-    fuel: "Diesel",
+    fuelType: "Diesel",
     transmission: "Automatic",
-    body: "Truck",
     colour,
+    seats: randInt(2, 3),
+    hasTowBar: randBool(0.5),
+    hasWarranty: randBool(0.2),
     price,
-    title,
-    description: `${title} ${mileage.toLocaleString()} km, fleet maintained.`,
+    description: `${year} ${make} ${model} — ${mileage.toLocaleString()} km, fleet maintained.`,
     images: imagesForListing("Trucks", make, model, year, i),
   };
 }
@@ -235,21 +265,25 @@ function makeFarmPlant(i: number) {
   const mileage = randInt(500, 5000); // treat as hours
   const price = randInt(4000, 55000);
   const colour = pick(COLOURS, i);
-  const title = `${year} ${make} ${model}`;
+
+  const title = `${make} ${model}`;
 
   return {
     category: "Farm & Plant" as const,
     make,
     model,
+    body,
+    title,             // NO YEAR IN TITLE
     year,
     mileage,
-    fuel: "Diesel",
+    fuelType: "Diesel",
     transmission: "Manual",
-    body,
     colour,
+    seats: randInt(1, 2),
+    hasTowBar: randBool(0.4),
+    hasWarranty: randBool(0.2),
     price,
-    title,
-    description: `${title}, ${mileage.toLocaleString()} hours, ready for work.`,
+    description: `${year} ${make} ${model}, ${mileage.toLocaleString()} hours — ready for work.`,
     images: imagesForListing("Farm & Plant", make, model, year, i),
   };
 }
